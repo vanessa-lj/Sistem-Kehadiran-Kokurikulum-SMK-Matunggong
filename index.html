@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Kokurikulum SMK Matunggong - Live Dashboard</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap-grid.min.css" rel=\"stylesheet\">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        darkslate: '#0f172a',
+                        royal: '#2563eb',
+                        emerald: '#10b981',
+                        roseaccent: '#f43f5e',
+                        amberaccent: '#fbbf24'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 1rem; }
+        .custom-input { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 0.75rem; border-radius: 0.5rem; width: 100%; transition: all 0.3s; }
+        .custom-input:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+        .seg-btn { padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .seg-active-hadir { background-color: #10b981; color: white; }
+        .seg-active-ponteng { background-color: #f43f5e; color: white; }
+        .seg-inactive { background-color: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body class="p-3 md:p-6">
+
+    <div id="toast-box" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <header class="glass-card p-4 mb-6 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <img src="https://i.postimg.cc/9FLXr1cN/logo-semekgong.png" alt="Logo Sekolah" class="w-12 h-12 object-contain">
+            <div>
+                <h1 class="text-lg md:text-xl font-bold tracking-tight text-white">SMK MATUNGGONG, KUDAT</h1>
+                <p class="text-xs text-slate-400">Portal Pengurusan & Dashboard Live Kokurikulum</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+            <span id="cloud-badge" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-amberaccent/20 text-amberaccent animate-pulse flex items-center gap-1.5">
+                <i data-lucide="cloud-lightning" class="w-3.5 h-3.5"></i> Menghubung Awan...
+            </span>
+            <button onclick="switchView('dashboard')" id="nav-dash" class="px-4 py-2 rounded-lg text-sm font-semibold bg-royal text-white flex items-center gap-2 transition">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+            </button>
+            <button onclick="switchView('form')" id="nav-form" class="px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition">
+                <i data-lucide="file-text" class="w-4 h-4"></i> Borang Laporan
+            </button>
+        </div>
+    </header>
+
+    <main id="view-dashboard" class="space-y-6">
+        <section class="glass-card p-4 flex flex-wrap gap-3 items-center justify-between">
+            <div class="flex flex-wrap gap-2 items-center w-full lg:w-auto">
+                <div class="flex flex-col min-w-[120px]">
+                    <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Bulan</label>
+                    <select id="filter-bulan" onchange="applyDashboardFilters()" class="custom-input !py-1.5 text-sm">
+                        <option value="">Semua Bulan</option>
+                        <option value="01">Januari</option><option value="02">Februari</option><option value="03">Mac</option>
+                        <option value="04">April</option><option value="05">Mei</option><option value="06">Jun</option>
+                        <option value="07">Julai</option><option value="08">Ogos</option><option value="09">September</option>
+                        <option value="10">Oktober</option><option value="11">November</option><option value="12">Disember</option>
+                    </select>
+                </div>
+                <div class="flex flex-col min-w-[110px]">
+                    <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Minggu</label>
+                    <select id="filter-minggu" onchange="applyDashboardFilters()" class="custom-input !py-1.5 text-sm">
+                        <option value="">Semua Minggu</option>
+                        <option value="Minggu 1">Minggu 1</option><option value="Minggu 2">Minggu 2</option>
+                        <option value="Minggu 3">Minggu 3</option><option value="Minggu 4">Minggu 4</option>
+                        <option value="Minggu 5">Minggu 5</option>
+                    </select>
+                </div>
+                <div class="flex flex-col min-w-[120px]">
+                    <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Perjumpaan</label>
+                    <select id="filter-perjumpaan" onchange="applyDashboardFilters()" class="custom-input !py-1.5 text-sm">
+                        <option value="">Semua Siri</option>
+                        <script>
+                            for(let i=1; i<=12; i++) {
+                                document.write(`<option value="${i}">Perjumpaan ${i}</option>`);
+                            }
+                        </script>
+                    </select>
+                </div>
+                <div class="flex flex-col min-w-[160px]">
+                    <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Kategori</label>
+                    <select id="filter-kategori" onchange="onDashboardKategoriChange()" class="custom-input !py-1.5 text-sm">
+                        <option value="">Semua Kategori</option>
+                        <option value="Unit Beruniform">Unit Beruniform</option>
+                        <option value="Kelab & Persatuan">Kelab & Persatuan</option>
+                        <option value="Sukan & Permainan">Sukan & Permainan</option>
+                    </select>
+                </div>
+                <div class="flex flex-col min-w-[160px]">
+                    <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Unit Spesifik</label>
+                    <select id="filter-unit" onchange="applyDashboardFilters()" class="custom-input !py-1.5 text-sm">
+                        <option value="">Semua Unit</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full lg:w-auto justify-end mt-2 lg:mt-0">
+                <button onclick="fetchCloudData()" class="px-3 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Ambil Data Segar
+                </button>
+            </div>
+        </section>
+
+        <section class="row g-3">
+            <div class="col-12 col-md-4">
+                <div class="glass-card p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Jumlah Rekod Sesi</p>
+                        <h3 id="kpi-total-laporan" class="text-3xl font-extrabold text-white mt-1">0</h3>
+                    </div>
+                    <div class="p-3 rounded-xl bg-royal/10 text-royal"><i data-lucide="database" class="w-6 h-6"></i></div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="glass-card p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Purata Kehadiran Gergasi</p>
+                        <h3 id="kpi-purata-hadir" class="text-3xl font-extrabold text-emerald mt-1">0%</h3>
+                    </div>
+                    <div class="p-3 rounded-xl bg-emerald/10 text-emerald"><i data-lucide="users" class="w-6 h-6"></i></div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="glass-card p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Unit Paling Komited</p>
+                        <h3 id="kpi-unit-aktif" class="text-base font-bold text-amberaccent mt-1 truncate max-w-[200px]">-</h3>
+                    </div>
+                    <div class="p-3 rounded-xl bg-amberaccent/10 text-amberaccent"><i data-lucide="award" class="w-6 h-6"></i></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="row g-3">
+            <div class="col-12 col-lg-4">
+                <div class="glass-card p-4 h-full flex flex-col justify-between">
+                    <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-1.5"><i data-lucide="pie-chart" class="w-4 h-4 text-royal"></i>Komposisi Ragam Aktiviti</h4>
+                    <div class="relative m-auto w-full max-w-[240px]"><canvas id="chart-pie-aktiviti"></canvas></div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4">
+                <div class="glass-card p-4 h-full flex flex-col justify-between">
+                    <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-emerald"></i>Larian Trend Kehadiran Mingguan</h4>
+                    <div class="w-full h-[220px]"><canvas id="chart-line-kehadiran"></canvas></div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4">
+                <div class="glass-card p-4 h-full flex flex-col justify-between">
+                    <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-1.5"><i data-lucide="bar-chart-3" class="w-4 h-4 text-amberaccent"></i>Prestasi Kehadiran Mengikut Tingkatan</h4>
+                    <div class="w-full h-[220px]"><canvas id="chart-bar-tingkatan"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-card p-4">
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                <h4 class="text-sm font-bold text-white flex items-center gap-1.5"><i data-lucide="sliders" class="w-4 h-4 text-royal"></i>Analisis Kehadiran Berperincian Mengikut Kelas</h4>
+                <select id="analysis-tingkatan-select" onchange="renderKelasGranularAnalysis()" class="custom-input !w-auto !py-1 text-xs">
+                    <option value="Tingkatan 1">Tingkatan 1</option>
+                    <option value="Tingkatan 2">Tingkatan 2</option>
+                    <option value="Tingkatan 3">Tingkatan 3</option>
+                    <option value="Tingkatan 4">Tingkatan 4</option>
+                    <option value="Tingkatan 5">Tingkatan 5</option>
+                </select>
+            </div>
+            <div id="granular-kelas-container" class="row g-3">
+                </div>
+        </section>
+
+        <section class="glass-card p-4">
+            <h4 class="text-sm font-bold text-white mb-4 flex items-center gap-1.5"><i data-lucide="history" class="w-4 h-4 text-slate-400"></i>Log Suapan Pelaporan Awan Terkini</h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-700/50 text-slate-400 text-xs uppercase font-bold bg-slate-900/30">
+                            <th class="p-3">Siri / Tarikh</th>
+                            <th class="p-3">Pencatat & Unit</th>
+                            <th class="p-3">Ringkasan Aktiviti</th>
+                            <th class="p-3 text-center">Kehadiran</th>
+                            <th class="p-3 text-right">Tindakan Operasi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-log-body" class="divide-y divide-slate-800/40">
+                        <tr><td colspan="5" class="p-8 text-center text-slate-500">Tiada rekod data dijumpai. Sila muat semula...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <main id="view-form" class="space-y-6 hidden">
+        <form id="main-report-form" onsubmit="handleFormSubmission(event)" class="row g-4">
+            <div class="col-12 col-lg-4 space-y-4">
+                <div class="glass-card p-4 space-y-4">
+                    <h3 id="form-title-context" class="text-base font-bold text-white border-b border-slate-700/50 pb-2 flex items-center gap-2">
+                        <i data-lucide="clipboard-edit" class="w-5 h-5 text-royal"></i> Borang Laporan Baharu
+                    </h3>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nama Guru Pelapor <span class="text-roseaccent">*</span></label>
+                        <input type="text" id="inp-guru" required oninput="saveDraftWithThrottle()" class="custom-input" placeholder="Nama penuh guru">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Tarikh Perjumpaan <span class="text-roseaccent">*</span></label>
+                            <input type="date" id="inp-tarikh" required oninput="saveDraftWithThrottle()" class="custom-input">
+                        </div>
+                        <div class="col-6">
+                            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Perjumpaan Ke- <span class="text-roseaccent">*</span></label>
+                            <select id="inp-perjumpaan" required onchange="saveDraftWithThrottle()" class="custom-input">
+                                <option value="">-- Pilih --</option>
+                                <script>
+                                    for(let i=1; i<=12; i++) {
+                                        document.write(`<option value="${i}">Siri Perjumpaan ${i}</option>`);
+                                    }
+                                </script>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Kategori Kokurikulum <span class="text-roseaccent">*</span></label>
+                        <select id="inp-kategori" required onchange="onFormKategoriChange()" class="custom-input">
+                            <option value="">-- Pilih Kategori --</option>
+                            <option value="Unit Beruniform">Unit Beruniform</option>
+                            <option value="Kelab & Persatuan">Kelab & Persatuan</option>
+                            <option value="Sukan & Permainan">Sukan & Permainan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Unit Kokurikulum <span class="text-roseaccent">*</span></label>
+                        <select id="inp-unit" required onchange="onFormUnitChange()" class="custom-input">
+                            <option value="">-- Pilih Unit --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Jenis Kluster Aktiviti <span class="text-roseaccent">*</span></label>
+                        <select id="inp-aktiviti" required onchange="saveDraftWithThrottle()" class="custom-input">
+                            <option value="">-- Pilih Aktiviti --</option>
+                            <option value="Mesyuarat / Teori">Mesyuarat / Teori</option>
+                            <option value="Latihan / Amali">Latihan / Amali</option>
+                            <option value="Projek / Khidmat Masyarakat">Projek / Khidmat Masyarakat</option>
+                            <option value="Pertandingan">Pertandingan</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Ringkasan Laporan Aktiviti <span class="text-roseaccent">*</span></label>
+                        <textarea id="inp-laporan" required oninput="saveDraftWithThrottle()" rows="4" class="custom-input" placeholder="Nyatakan objektif, ringkasan pengisian, impak perjumpaan..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Dokumentasi Media Gambar (Maks 4 Gambar)</label>
+                        <input type="file" id="inp-media-file" multiple accept="image/*" onchange="processImageUpload(event)" class="hidden">
+                        <div onclick="document.getElementById('inp-media-file').click()" class="border-2 border-dashed border-slate-700 hover:border-royal rounded-xl p-4 text-center cursor-pointer bg-slate-900/40 transition">
+                            <i data-lucide="image-plus" class="w-8 h-8 text-slate-500 m-auto mb-2"></i>
+                            <span class="text-xs text-slate-400 block">Klik untuk muat naik media gambar aktiviti</span>
+                        </div>
+                        <div id="media-preview-container" class="grid grid-cols-4 gap-2 mt-2"></div>
+                    </div>
+                    <div class="pt-2 flex gap-2">
+                        <button type="submit" class="flex-1 px-4 py-2.5 rounded-lg bg-emerald font-bold text-white hover:bg-emerald/90 transition text-sm flex items-center justify-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i> <span id="btn-submit-text">Hantar & Jana PDF</span>
+                        </button>
+                        <button type="button" onclick="triggerCustomFormReset()" class="px-3 py-2.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 transition"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-8">
+                <div class="glass-card p-4 space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-700/50 pb-3">
+                        <div>
+                            <h3 class="text-base font-bold text-white">Modul Kemasukan Kehadiran Ahli</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Semak, ubah maklumat inline, atau daftarkan nama murid cicir di bawah.</p>
+                        </div>
+                        <button type="button" id="btn-ad-hoc" disabled onclick="openAdHocModal()" class="px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5 transition">
+                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Tambah Ahli Cicir (Ad-Hoc)
+                        </button>
+                    </div>
+                    
+                    <div id="attendance-list-wrapper" class="space-y-2 max-h-[680px] overflow-y-auto pr-1">
+                        <div class="text-center p-12 text-slate-500 text-sm">Sila pilih Kategori dan Unit di panel kiri terlebih dahulu untuk memuatkan ahli.</div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <div id="custom-modal" class="fixed inset-0 bg-darkslate/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex items-start gap-3">
+                <div id="modal-icon-bg" class="p-2.5 rounded-xl bg-royal/10 text-royal"><i id="modal-icon" data-lucide="help-circle" class="w-6 h-6"></i></div>
+                <div>
+                    <h3 id="modal-title" class="text-base font-bold text-white">Pengesahan Diperlukan</h3>
+                    <p id="modal-desc" class="text-sm text-slate-400 mt-1">Adakah anda pasti untuk meneruskan tindakan ini?</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="modal-btn-no" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold text-xs transition">Batal</button>
+                <button id="modal-btn-yes" class="px-4 py-2 rounded-lg bg-royal text-white font-bold text-xs transition">Sahkan</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="adhoc-modal" class="fixed inset-0 bg-darkslate/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-card max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <h3 class="text-base font-bold text-white flex items-center gap-1.5"><i data-lucide="user-plus" class="w-4 h-4 text-royal"></i> Daftar Murid Cicir (Ad-Hoc)</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Penuh Murid</label>
+                    <input type="text" id="adhoc-nama" class="custom-input text-sm" placeholder="Contoh: MOHD AZMI BIN ALIAS">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Peringkat Tingkatan</label>
+                    <select id="adhoc-ting" class="custom-input text-sm">
+                        <option value="Tingkatan 1">Tingkatan 1</option><option value="Tingkatan 2">Tingkatan 2</option>
+                        <option value="Tingkatan 3">Tingkatan 3</option><option value="Tingkatan 4">Tingkatan 4</option>
+                        <option value="Tingkatan 5">Tingkatan 5</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Kelas</label>
+                    <input type="text" id="adhoc-kelas" class="custom-input text-sm" placeholder="Contoh: Zamrud">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeAdHocModal()" class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold text-xs transition">Tutup</button>
+                <button onclick="submitAdHocStudent()" class="px-4 py-2 rounded-lg bg-emerald text-white font-bold text-xs transition">Masukkan Ahli</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURATIONS & GLOBAL STATE POOLS
+        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1XiwxHhgKsTsOTJmAUzeBEGizTGQZkns0_mBkYrodHVA/export?format=csv";
+        const SCRIPT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz6HezKcIJe5QJ8_oXjxKmN2wOAgcTTbJmR78m0ezuKkgEhWSNdIqn1PevadOVWEsV4xQ/exec";
+
+        let masterStudentDatabase = [];
+        let databaseLaporan = [];
+        let activeFormStudents = [];
+        let selectedMedia = [];
+        let activeView = "dashboard";
+        
+        // Edit Mode Trackers
+        let isEditMode = false;
+        let editingRecordId = null;
+
+        let pieChartInstance = null;
+        let lineChartInstance = null;
+        let barChartInstance = null;
+
+        // INITIALIZATION
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            fetchMasterStudents();
+            fetchCloudData();
+            loadLogsFromLocalFallback();
+        });
+
+        // NOTIFICATION TOAST ENGINE
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-box');
+            const toast = document.createElement('div');
+            toast.className = `p-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center gap-2 max-w-sm text-white transform translate-y-2 transition duration-300 ease-out pointer-events-auto`;
+            
+            let icon = "info";
+            if (type === "success") { toast.className += " bg-emerald/90 border-emerald"; icon = "check-circle"; }
+            else if (type === "error") { toast.className += " bg-roseaccent/90 border-roseaccent"; icon = "alert-triangle"; }
+            else if (type === "warning") { toast.className += " bg-amberaccent/90 border-amberaccent text-slate-900"; icon = "alert-circle"; }
+            else { toast.className += " bg-slate-800/90 border-slate-700"; }
+            
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i> <span class="flex-1">${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons({attrs: {class: 'w-4 h-4 shrink-0'}});
+            
+            setTimeout(() => { toast.classList.remove('translate-y-2'); toast.classList.add('opacity-0'); setTimeout(() => toast.remove(), 300); }, 4000);
+        }
+
+        // CUSTOM MODAL ENGINE (REPLACES PROMPT / CONFIRM)
+        function triggerCustomDialog({ title, desc, icon, iconColorClass, yesText, noText, onConfirm }) {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('modal-btn-yes').innerText = yesText || "Sahkan";
+            document.getElementById('modal-btn-no').innerText = noText || "Batal";
+            
+            const iconBg = document.getElementById('modal-icon-bg');
+            iconBg.className = `p-2.5 rounded-xl ${iconColorClass || 'bg-royal/10 text-royal'}`;
+            document.getElementById('modal-icon').setAttribute('data-lucide', icon || 'help-circle');
+            lucide.createIcons();
+
+            modal.classList.remove('hidden');
+
+            const cleanUp = () => {
+                modal.classList.add('hidden');
+                document.getElementById('modal-btn-yes').onclick = null;
+                document.getElementById('modal-btn-no').onclick = null;
+            };
+
+            document.getElementById('modal-btn-yes').onclick = () => { cleanUp(); if(onConfirm) onConfirm(); };
+            document.getElementById('modal-btn-no').onclick = () => { cleanUp(); };
+        }
+
+        // SYSTEM ACCESS & VIEW CONTROLLER
+        function switchView(target) {
+            activeView = target;
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-form').classList.add('hidden');
+            document.getElementById('nav-dash').className = "px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition";
+            document.getElementById('nav-form').className = "px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center gap-2 transition";
+
+            if (target === 'dashboard') {
+                document.getElementById('view-dashboard').classList.remove('hidden');
+                document.getElementById('nav-dash').className = "px-4 py-2 rounded-lg text-sm font-semibold bg-royal text-white flex items-center gap-2 transition";
+                // Exit edit mode smoothly if leaving form
+                if(isEditMode) triggerFormResetLogic(false);
+                renderDashboard();
+            } else if (target === 'form') {
+                document.getElementById('view-form').classList.remove('hidden');
+                document.getElementById('nav-form').className = "px-4 py-2 rounded-lg text-sm font-semibold bg-royal text-white flex items-center gap-2 transition";
+                if(!isEditMode) {
+                    document.getElementById('inp-tarikh').value = new Date().toISOString().split('T')[0];
+                }
+            }
+        }
+
+        // DATA INGESTION ENGINE: FETCH MASTER STUDENTS DATA
+        function fetchMasterStudents() {
+            fetch(SHEET_CSV_URL)
+                .then(res => res.text())
+                .then(csvText => {
+                    parseMasterCSV(csvText);
+                    updateCloudBadge();
+                })
+                .catch(err => {
+                    console.error("CSV Ingestion Error:", err);
+                    showToast("Mod Offline: Gagal memuatkan data pangkalan data murid dari Google Sheets.", "error");
+                });
+        }
+
+        function parseMasterCSV(text) {
+            const lines = text.split(/\r?\n/);
+            if(lines.length === 0) return;
+            const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+            
+            // Dynamic Header Mapper
+            let catIdx = headers.indexOf('kategori');
+            let unitIdx = headers.indexOf('unit');
+            let nameIdx = headers.indexOf('nama');
+            let tingIdx = headers.indexOf('tingkatan');
+            let kelasIdx = headers.indexOf('kelas');
+
+            // Fallback strategy indices
+            if(catIdx===-1) catIdx = 0; if(unitIdx===-1) unitIdx = 1; if(nameIdx===-1) nameIdx = 2;
+            if(tingIdx===-1) tingIdx = 3; if(kelasIdx===-1) kelasIdx = 4;
+
+            masterStudentDatabase = [];
+            for(let i=1; i<lines.length; i++) {
+                if(!lines[i]) continue;
+                // Handling commas inside quotations safely
+                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(r => r.replace(/^"|"$/g, '').trim());
+                if(row.length <= nameIdx || !row[nameIdx]) continue;
+
+                masterStudentDatabase.push({
+                    kategori: row[catIdx] || '',
+                    unit: row[unitIdx] || '',
+                    nama: row[nameIdx] || '',
+                    tingkatan: row[tingIdx] || '',
+                    kelas: row[kelasIdx] || ''
+                });
+            }
+        }
+
+        // DATA INGESTION ENGINE: FETCH REAL-TIME DATA CENTRAL
+        function fetchCloudData() {
+            updateCloudBadge("connecting");
+            fetch(SCRIPT_WEBAPP_URL)
+                .then(res => res.json())
+                .then(data => {
+                    if(Array.isArray(data)) {
+                        databaseLaporan = data;
+                        localStorage.setItem('smkm_logs', JSON.stringify(databaseLaporan));
+                        showToast(`Data awan disinkronkan. Berjaya memuatkan ${data.length} laporan.`, "success");
+                    }
+                    updateCloudBadge("online");
+                    renderDashboard();
+                })
+                .catch(err => {
+                    console.error("Cloud Access Denied:", err);
+                    updateCloudBadge("offline");
+                    loadLogsFromLocalFallback();
+                    renderDashboard();
+                });
+        }
+
+        function loadLogsFromLocalFallback() {
+            const stored = localStorage.getItem('smkm_logs');
+            if(stored) {
+                databaseLaporan = JSON.parse(stored);
+                showToast("Memuatkan log sandaran tempatan peranti (Mod Luar Talian).", "warning");
+            }
+        }
+
+        function updateCloudBadge(status = "online") {
+            const badge = document.getElementById('cloud-badge');
+            if(status === "connecting") {
+                badge.className = "px-3 py-1.5 rounded-full text-xs font-semibold bg-amberaccent/20 text-amberaccent animate-pulse flex items-center gap-1.5";
+                badge.innerHTML = `<i data-lucide="cloud-lightning" class="w-3.5 h-3.5"></i> Menyambung Awan...`;
+            } else if(status === "online") {
+                badge.className = "px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald/20 text-emerald flex items-center gap-1.5";
+                badge.innerHTML = `<i data-lucide="cloud" class="w-3.5 h-3.5"></i> Awan Aktif (${masterStudentDatabase.length} Murid)`;
+            } else {
+                badge.className = "px-3 py-1.5 rounded-full text-xs font-semibold bg-roseaccent/20 text-roseaccent flex items-center gap-1.5";
+                badge.innerHTML = `<i data-lucide="cloud-off" class="w-3.5 h-3.5"></i> Mod Offline (Tempatan)`;
+            }
+            lucide.createIcons();
+        }
+
+        // CASCADING CATERING LOGIC (DASHBOARD & FORM)
+        function getUniqueUnits(kategori) {
+            if(!kategori) return [...new Set(masterStudentDatabase.map(m => m.unit))].filter(Boolean);
+            return [...new Set(masterStudentDatabase.filter(m => m.kategori === kategori).map(m => m.unit))].filter(Boolean);
+        }
+
+        function onDashboardKategoriChange() {
+            const kat = document.getElementById('filter-kategori').value;
+            const unitSelect = document.getElementById('filter-unit');
+            unitSelect.innerHTML = '<option value="">Semua Unit</option>';
+            getUniqueUnits(kat).forEach(u => {
+                unitSelect.innerHTML += `<option value="${u}">${u}</option>`;
+            });
+            applyDashboardFilters();
+        }
+
+        function onFormKategoriChange() {
+            const kat = document.getElementById('inp-kategori').value;
+            const unitSelect = document.getElementById('inp-unit');
+            unitSelect.innerHTML = '<option value="">-- Pilih Unit --</option>';
+            getUniqueUnits(kat).forEach(u => {
+                unitSelect.innerHTML += `<option value="${u}">${u}</option>`;
+            });
+            
+            document.getElementById('attendance-list-wrapper').innerHTML = `<div class="text-center p-12 text-slate-500 text-sm">Sila pilih Unit Spesifik untuk memuatkan ahli.</div>`;
+            document.getElementById('btn-ad-hoc').className = "px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5 transition";
+            document.getElementById('btn-ad-hoc').disabled = true;
+            
+            saveDraftWithThrottle();
+        }
+
+        function onFormUnitChange() {
+            const unit = document.getElementById('inp-unit').value;
+            if(!unit) return;
+            
+            // If we are in edit mode, don't auto check draft because we manually populated it.
+            if(isEditMode) {
+                renderAttendanceModule();
+                return;
+            }
+
+            const draftKey = `smkm_draft_${unit.replace(/\s+/g, '_')}`;
+            const existingDraft = localStorage.getItem(draftKey);
+
+            if (existingDraft) {
+                triggerCustomDialog({
+                    title: "Draf Lama Dikesan",
+                    desc: `Terdapat draf pengisian belum dihantar bagi unit ${unit}. Adakah anda mahu memulihkan rekod tersebut?`,
+                    icon: "folder-open",
+                    iconColorClass: "bg-amberaccent/10 text-amberaccent",
+                    yesText: "Ya, Pulihkan",
+                    noText: "Tidak, Buat Baru",
+                    onConfirm: () => {
+                        loadUnitDraft(draftKey);
+                    },
+                    onCancel: () => {
+                        localStorage.removeItem(draftKey);
+                        buildFreshAttendanceList(unit);
+                    }
+                });
+            } else {
+                buildFreshAttendanceList(unit);
+            }
+        }
+
+        function buildFreshAttendanceList(unit) {
+            const matchingStudents = masterStudentDatabase.filter(m => m.unit === unit);
+            activeFormStudents = matchingStudents.map(m => ({
+                nama: m.nama,
+                tingkatan: m.tingkatan,
+                kelas: m.kelas,
+                status: "HADIR",
+                alasan: ""
+            }));
+            
+            // Enable Ad-Hoc injection button
+            document.getElementById('btn-ad-hoc').className = "px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs hover:bg-royal/90 flex items-center gap-1.5 transition cursor-pointer";
+            document.getElementById('btn-ad-hoc').disabled = false;
+
+            renderAttendanceModule();
+            saveDraftWithThrottle();
+        }
+
+        // ATTENDANCE SUB-MODULE GRAPHICAL RENDERER
+        function renderAttendanceModule() {
+            const wrapper = document.getElementById('attendance-list-wrapper');
+            if(activeFormStudents.length === 0) {
+                wrapper.innerHTML = `<div class="text-center p-12 text-slate-500 text-sm">Tiada ahli berdaftar di bawah unit ini. Sila daftar ahli secara manual (Ad-Hoc).</div>`;
+                return;
+            }
+
+            wrapper.innerHTML = "";
+            activeFormStudents.forEach((stud, index) => {
+                const isHadir = stud.status === "HADIR";
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 transition ${isHadir ? 'bg-slate-800/40 border-slate-700/60' : 'bg-roseaccent/5 border-roseaccent/30'}`;
+                
+                card.innerHTML = `
+                    <div class="flex-1 space-y-1.5">
+                        <div class="text-sm font-bold text-white tracking-wide">${stud.nama}</div>
+                        <div class="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                            <select onchange="updateInlineStudentMetadata(${index}, 'tingkatan', this.value)" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] text-slate-300">
+                                <option value="Tingkatan 1" ${stud.tingkatan==='Tingkatan 1'?'selected':''}>T1</option>
+                                <option value="Tingkatan 2" ${stud.tingkatan==='Tingkatan 2'?'selected':''}>T2</option>
+                                <option value="Tingkatan 3" ${stud.tingkatan==='Tingkatan 3'?'selected':''}>T3</option>
+                                <option value="Tingkatan 4" ${stud.tingkatan==='Tingkatan 4'?'selected':''}>T4</option>
+                                <option value="Tingkatan 5" ${stud.tingkatan==='Tingkatan 5'?'selected':''}>T5</option>
+                            </select>
+                            <input type="text" value="${stud.kelas}" onchange="updateInlineStudentMetadata(${index}, 'kelas', this.value)" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] text-slate-300 max-w-[80px]" placeholder="Kelas">
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="flex border border-slate-700 rounded-lg overflow-hidden bg-slate-900">
+                            <div onclick="toggleAttendanceStatus(${index}, 'HADIR')" class="seg-btn text-xs py-1.5 ${isHadir ? 'seg-active-hadir' : 'seg-inactive'}">HADIR</div>
+                            <div onclick="toggleAttendanceStatus(${index}, 'PONTENG')" class="seg-btn text-xs py-1.5 ${!isHadir ? 'seg-active-ponteng' : 'seg-inactive'}">PONTENG</div>
+                        </div>
+
+                        <div class="min-w-[160px] ${isHadir ? 'hidden' : 'block'}">
+                            <select onchange="updateStudentReason(${index}, this.value)" class="custom-input !py-1 text-xs !bg-roseaccent/10 border-roseaccent/30 text-roseaccent font-semibold">
+                                <option value="" ${!stud.alasan?'selected':''}>-- Pilih Alasan --</option>
+                                <option value="Sakit (Sijil/Surat)" ${stud.alasan==='Sakit (Sijil/Surat)'?'selected':''}>Sakit (Sijil/Surat)</option>
+                                <option value="Mewakili Sekolah" ${stud.alasan==='Mewakili Sekolah'?'selected':''}>Mewakili Sekolah</option>
+                                <option value="Urusan Keluarga" ${stud.alasan==='Urusan Keluarga'?'selected':''}>Urusan Keluarga / Kecemasan</option>
+                                <option value="Masalah Pengangkutan" ${stud.alasan==='Masalah Pengangkutan'?'selected':''}>Masalah Pengangkutan</option>
+                                <option value="Tanpa Sebab (Ponteng)" ${stud.alasan==='Tanpa Sebab (Ponteng)'?'selected':''}>Tanpa Sebab (Ponteng)</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                wrapper.appendChild(card);
+            });
+        }
+
+        function toggleAttendanceStatus(index, status) {
+            activeFormStudents[index].status = status;
+            if(status === "HADIR") activeFormStudents[index].alasan = "";
+            renderAttendanceModule();
+            saveDraftWithThrottle();
+        }
+
+        function updateStudentReason(index, reason) {
+            activeFormStudents[index].alasan = reason;
+            saveDraftWithThrottle();
+        }
+
+        function updateInlineStudentMetadata(index, field, value) {
+            activeFormStudents[index][field] = value;
+            saveDraftWithThrottle();
+        }
+
+        // AD-HOC STUDENTS MANUAL INJECTION
+        function openAdHocModal() { document.getElementById('adhoc-modal').classList.remove('hidden'); }
+        function closeAdHocModal() { 
+            document.getElementById('adhoc-modal').classList.add('hidden');
+            document.getElementById('adhoc-nama').value = "";
+            document.getElementById('adhoc-kelas').value = "";
+        }
+        function submitAdHocStudent() {
+            const nama = document.getElementById('adhoc-nama').value.toUpperCase().trim();
+            const ting = document.getElementById('adhoc-ting').value;
+            const kelas = document.getElementById('adhoc-kelas').value.trim();
+
+            if(!nama || !kelas) { showToast("Sila lengkapkan semua medan maklumat murid ad-hoc.", "warning"); return; }
+            
+            activeFormStudents.push({ nama, tingkatan: ting, kelas, status: "HADIR", alasan: "" });
+            closeAdHocModal();
+            renderAttendanceModule();
+            saveDraftWithThrottle();
+            showToast("Murid ad-hoc berjaya dimasukkan ke senarai.", "success");
+        }
+
+        // UNIT DRAFT PERSISTENCE CONTROLLER
+        function saveDraftWithThrottle() {
+            const unit = document.getElementById('inp-unit').value;
+            if(!unit || isEditMode) return; // Never overwrite drafts during edit mode
+
+            const draftKey = `smkm_draft_${unit.replace(/\s+/g, '_')}`;
+            const draftPayload = {
+                guru: document.getElementById('inp-guru').value,
+                tarikh: document.getElementById('inp-tarikh').value,
+                perjumpaan: document.getElementById('inp-perjumpaan').value,
+                kategori: document.getElementById('inp-kategori').value,
+                aktiviti: document.getElementById('inp-aktiviti').value,
+                laporan: document.getElementById('inp-laporan').value,
+                students: activeFormStudents,
+                media: selectedMedia
+            };
+            localStorage.setItem(draftKey, JSON.stringify(draftPayload));
+        }
+
+        function loadUnitDraft(key) {
+            const raw = localStorage.getItem(key);
+            if(!raw) return;
+            const d = JSON.parse(raw);
+
+            document.getElementById('inp-guru').value = d.guru || "";
+            document.getElementById('inp-tarikh').value = d.tarikh || "";
+            document.getElementById('inp-perjumpaan').value = d.perjumpaan || "";
+            document.getElementById('inp-kategori').value = d.kategori || "";
+            
+            // Build unit choices dropdown context
+            const unitSelect = document.getElementById('inp-unit');
+            unitSelect.innerHTML = `<option value="${d.unit}">${d.unit}</option>`;
+            unitSelect.value = d.unit;
+            
+            document.getElementById('inp-aktiviti').value = d.aktiviti || "";
+            document.getElementById('inp-laporan').value = d.laporan || "";
+            
+            activeFormStudents = d.students || [];
+            selectedMedia = d.media || [];
+
+            document.getElementById('btn-ad-hoc').className = "px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs hover:bg-royal/90 flex items-center gap-1.5 transition cursor-pointer";
+            document.getElementById('btn-ad-hoc').disabled = false;
+
+            renderAttendanceModule();
+            renderMediaPreview();
+            showToast("Draf perjumpaan unit berjaya dipulihkan.", "success");
+        }
+
+        // CORE RE-ENGINEERED SUBMISSION AND CLOUD WRITE-BACK
+        function handleFormSubmission(e) {
+            e.preventDefault();
+
+            // Guard validation against unresolved missing skip reasons
+            const invalidStudents = activeFormStudents.filter(s => s.status === "PONTENG" && !s.alasan);
+            if(invalidStudents.length > 0) {
+                showToast(`Sila tetapkan alasan ponteng bagi sekurang-kurangnya ${invalidStudents.length} murid sebelum menghantar.`, "error");
+                return;
+            }
+
+            updateCloudBadge("connecting");
+            showToast(isEditMode ? "Sedang mengemaskini laporan di awan..." : "Menghantar laporan ke pangkalan data awan...", "info");
+
+            const unit = document.getElementById('inp-unit').value;
+            const payload = {
+                action: isEditMode ? "update" : "add",
+                id: isEditMode ? editingRecordId : Date.now(),
+                tarikh: document.getElementById('inp-tarikh').value,
+                pencatat: document.getElementById('inp-guru').value.toUpperCase(),
+                kategori: document.getElementById('inp-kategori').value,
+                unit: unit,
+                aktiviti: document.getElementById('inp-aktiviti').value,
+                perjumpaan: document.getElementById('inp-perjumpaan').value,
+                laporan: document.getElementById('inp-laporan').value,
+                kehadiran: activeFormStudents,
+                media: selectedMedia
+            };
+
+            fetch(SCRIPT_WEBAPP_URL, {
+                method: "POST",
+                mode: "no-cors", // Bypass standard CORS restriction locks securely
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                showToast(isEditMode ? "Laporan berjaya dikemaskini!" : "Laporan selamat direkodkan ke awan!", "success");
+                
+                // Clear draft only if it was a new record
+                if(!isEditMode) {
+                    const draftKey = `smkm_draft_${unit.replace(/\s+/g, '_')}`;
+                    localStorage.removeItem(draftKey);
+                }
+
+                // Fire Document generation engine
+                generateStandardPdfReport(payload);
+                
+                // Restore form
+                triggerFormResetLogic(true);
+                fetchCloudData();
+                switchView('dashboard');
+            })
+            .catch(err => {
+                console.error("Submission Crash:", err);
+                showToast("Ralat kritikal: Gagal menghantar rekod ke pelayan awan.", "error");
+                updateCloudBadge("offline");
+            });
+        }
+
+        // CORE EDIT REKOD OPERATION ENGINE
+        function editRecord(id) {
+            const log = databaseLaporan.find(item => item.id.toString() === id.toString());
+            if(!log) { showToast("Rekod laporan tidak dijumpai.", "error"); return; }
+
+            isEditMode = true;
+            editingRecordId = id;
+
+            // Transmit and fill standard views values
+            document.getElementById('inp-guru').value = log.pencatat || log.guru || "";
+            document.getElementById('inp-tarikh').value = log.tarikh || "";
+            document.getElementById('inp-perjumpaan').value = log.perjumpaan || "";
+            document.getElementById('inp-kategori').value = log.kategori || log.kat || "";
+            
+            // Build temporary cascading choices safely
+            const unitSelect = document.getElementById('inp-unit');
+            const targetUnit = log.unit || "";
+            unitSelect.innerHTML = `<option value="${targetUnit}">${targetUnit}</option>`;
+            unitSelect.value = targetUnit;
+
+            document.getElementById('inp-aktiviti').value = log.aktiviti || log.akt || "";
+            document.getElementById('inp-laporan').value = log.laporan || log.lap || "";
+
+            // RECOVERS EXPERT DATA FIELDS PRESERVING DATA TYPES
+            activeFormStudents = Array.isArray(log.kehadiran) ? log.kehadiran : [];
+            selectedMedia = Array.isArray(log.media) ? log.media : [];
+
+            // UI Adjustments
+            document.getElementById('form-title-context').innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-amberaccent"></i> Kemaskini Pelaporan Sesi`;
+            document.getElementById('btn-submit-text').innerText = "Kemaskini & Re-Jana PDF";
+            document.getElementById('btn-ad-hoc').className = "px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs hover:bg-royal/90 flex items-center gap-1.5 transition cursor-pointer";
+            document.getElementById('btn-ad-hoc').disabled = false;
+
+            renderAttendanceModule();
+            renderMediaPreview();
+            switchView('form');
+            showToast("Mod suntingan diaktifkan. Memuatkan data lama...", "warning");
+        }
+
+        // CLOUD SECURE DELETION CALLER
+        function deleteRecord(id) {
+            triggerCustomDialog({
+                title: "Padam Pelaporan?",
+                desc: "Tindakan ini akan memadam rekod perjumpaan dari pangkalan data awan (Google Sheets) secara kekal untuk semua orang.",
+                icon: "trash-2",
+                iconColorClass: "bg-roseaccent/10 text-roseaccent",
+                yesText: "Ya, Padam Penuh",
+                noText: "Kekalkan",
+                onConfirm: () => {
+                    updateCloudBadge("connecting");
+                    showToast("Memadam dari awan...", "info");
+
+                    fetch(SCRIPT_WEBAPP_URL, {
+                        method: "POST",
+                        mode: "no-cors",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "delete", id: id })
+                    })
+                    .then(() => {
+                        showToast("Rekod berjaya dipadam sepenuhnya.", "success");
+                        fetchCloudData();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showToast("Gagal memproses pemadaman pelayan awan.", "error");
+                    });
+                }
+            });
+        }
+
+        // FORM RESET CONTROLLERS
+        function triggerCustomFormReset() {
+            triggerCustomDialog({
+                title: "Set Semula Borang?",
+                desc: "Tindakan ini akan membatalkan semua kemasukan semasa data pada borang.",
+                icon: "alert-circle",
+                iconColorClass: "bg-amberaccent/10 text-amberaccent",
+                onConfirm: () => { triggerFormResetLogic(true); }
+            });
+        }
+
+        function triggerFormResetLogic(fullClearFormValues = true) {
+            isEditMode = false;
+            editingRecordId = null;
+            activeFormStudents = [];
+            selectedMedia = [];
+
+            document.getElementById('form-title-context').innerHTML = `<i data-lucide="clipboard-edit" class="w-5 h-5 text-royal"></i> Borang Laporan Baharu`;
+            document.getElementById('btn-submit-text').innerText = "Hantar & Jana PDF";
+            document.getElementById('btn-ad-hoc').className = "px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5 transition";
+            document.getElementById('btn-ad-hoc').disabled = true;
+
+            if(fullClearFormValues) {
+                document.getElementById('main-report-form').reset();
+                document.getElementById('inp-tarikh').value = new Date().toISOString().split('T')[0];
+                document.getElementById('attendance-list-wrapper').innerHTML = `<div class="text-center p-12 text-slate-500 text-sm">Sila pilih Kategori dan Unit di panel kiri terlebih dahulu untuk memuatkan ahli.</div>`;
+                renderMediaPreview();
+            }
+        }
+
+        // MEDIA PROCESSING LAB LABELS
+        function processImageUpload(e) {
+            const files = e.target.files;
+            if(!files) return;
+            
+            const remainingSlots = 4 - selectedMedia.length;
+            const loadCount = Math.min(files.length, remainingSlots);
+
+            if(loadCount <= 0) { showToast("Had maksimum 4 keping gambar dokumentasi telah dicapai.", "warning"); return; }
+
+            for(let i=0; i<loadCount; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    selectedMedia.push(evt.target.result);
+                    renderMediaPreview();
+                    saveDraftWithThrottle();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function renderMediaPreview() {
+            const container = document.getElementById('media-preview-container');
+            container.innerHTML = "";
+            selectedMedia.forEach((base64, idx) => {
+                const item = document.createElement('div');
+                item.className = "relative rounded-lg overflow-hidden border border-slate-700 h-16 bg-cover bg-center group";
+                item.style.backgroundImage = `url(${base64})`;
+                item.innerHTML = `
+                    <div onclick="removeMediaItem(${idx})" class="absolute inset-0 bg-roseaccent/80 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition">
+                        <i data-lucide="trash-2" class="w-4 h-4 text-white"></i>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        function removeMediaItem(idx) {
+            selectedMedia.splice(idx, 1);
+            renderMediaPreview();
+            saveDraftWithThrottle();
+        }
+
+        // RE-ENGINEERED DASHBOARD AND GRAPHICAL ANALYTICS ENGINE
+        function applyDashboardFilters() { renderDashboard(); }
+
+        function renderDashboard() {
+            // Read active selectors values
+            const filterBulan = document.getElementById('filter-bulan').value;
+            const filterMinggu = document.getElementById('filter-minggu').value;
+            const filterPerjumpaan = document.getElementById('filter-perjumpaan').value;
+            const filterKat = document.getElementById('filter-kategori').value;
+            const filterUnit = document.getElementById('filter-unit').value;
+
+            // Sieve logs pipeline array
+            const filteredLogs = databaseLaporan.filter(log => {
+                if(filterBulan && (!log.tarikh || log.tarikh.split('-')[1] !== filterBulan)) return false;
+                
+                // Fallback tracking mapping to support old data cleanly
+                const actText = (log.laporan || log.lap || "").toLowerCase();
+                const matchedMinggu = filterMinggu ? (actText.includes(filterMinggu.toLowerCase())) : true;
+                if(filterMinggu && !matchedMinggu) return false;
+
+                if(filterPerjumpaan && log.perjumpaan && log.perjumpaan.toString() !== filterPerjumpaan.toString()) return false;
+                if(filterKat && log.kategori !== filterKat) return false;
+                if(filterUnit && log.unit !== filterUnit) return false;
+                return true;
+            });
+
+            // Update Primary Numerical KPIs Indicators
+            document.getElementById('kpi-total-laporan').innerText = filteredLogs.length;
+            
+            let grandTotalStudents = 0;
+            let grandTotalAttended = 0;
+            let unitCountsMap = {};
+
+            let activityDistribution = { "Mesyuarat / Teori": 0, "Latihan / Amali": 0, "Projek / Khidmat Masyarakat": 0, "Pertandingan": 0 };
+            let weeklyAttendanceSum = { "Minggu 1": {s:0,c:0}, "Minggu 2": {s:0,c:0}, "Minggu 3": {s:0,c:0}, "Minggu 4": {s:0,c:0}, "Minggu 5": {s:0,c:0} };
+            let formPerformanceMap = { "Tingkatan 1": {h:0,t:0}, "Tingkatan 2": {h:0,t:0}, "Tingkatan 3": {h:0,t:0}, "Tingkatan 4": {h:0,t:0}, "Tingkatan 5": {h:0,t:0} };
+
+            filteredLogs.forEach(log => {
+                // Determine active commitment unit counters
+                unitCountsMap[log.unit] = (unitCountsMap[log.unit] || 0) + 1;
+                
+                // Track activity types
+                if(activityDistribution[log.aktiviti] !== undefined) activityDistribution[log.aktiviti]++;
+
+                // Calculate sub attendance percentage values
+                const studs = log.kehadiran || [];
+                let sessionAttended = 0;
+                studs.forEach(s => {
+                    const status = (s.status || "HADIR").toUpperCase();
+                    const formGroup = s.tingkatan || "Tingkatan 1";
+                    
+                    if(formPerformanceMap[formGroup]) {
+                        formPerformanceMap[formGroup].t++;
+                        if(status === "HADIR") formPerformanceMap[formGroup].h++;
+                    }
+
+                    if(status === "HADIR") { sessionAttended++; grandTotalAttended++; }
+                    grandTotalStudents++;
+                });
+
+                const pct = studs.length > 0 ? (sessionAttended / studs.length) * 100 : 0;
+                
+                // Distribute to weeks matrix
+                const textDump = (log.laporan || log.lap || "").toLowerCase();
+                ["Minggu 1", "Minggu 2", "Minggu 3", "Minggu 4", "Minggu 5"].forEach(wk => {
+                    if(textDump.includes(wk.toLowerCase())) {
+                        weeklyAttendanceSum[wk].s += pct;
+                        weeklyAttendanceSum[wk].c++;
+                    }
+                });
+            });
+
+            // Set final global presence rate
+            const globalPct = grandTotalStudents > 0 ? Math.round((grandTotalAttended / grandTotalStudents) * 100) : 0;
+            document.getElementById('kpi-purata-hadir').innerText = `${globalPct}%`;
+
+            // Compute supreme committed unit champion
+            let topUnit = "-";
+            let maxCount = 0;
+            for(let u in unitCountsMap) {
+                if(unitCountsMap[u] > maxCount) { maxCount = unitCountsMap[u]; topUnit = u; }
+            }
+            document.getElementById('kpi-unit-aktif').innerText = maxCount > 0 ? `${topUnit} (${maxCount} Perjumpaan)` : "-";
+
+            // Render Sub Logs Rows Data Table
+            const tbody = document.getElementById('table-log-body');
+            if(filteredLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Tiada suapan log sepadan ditemui dalam penapis semasa.</td></tr>`;
+            } else {
+                tbody.innerHTML = "";
+                // Render newest reports first
+                [...filteredLogs].reverse().forEach(log => {
+                    const studs = log.kehadiran || [];
+                    const attendedCount = studs.filter(s => (s.status||'HADIR') === 'HADIR').length;
+                    const sessionPct = studs.length > 0 ? Math.round((attendedCount / studs.length) * 100) : 0;
+                    const displayPerjumpaan = log.perjumpaan ? `<span class="px-2 py-0.5 rounded bg-royal/20 text-royal font-bold text-[10px]">Siri ${log.perjumpaan}</span>` : `<span class="text-slate-500 text-[10px] italic">Laporan Lama</span>`;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/20 text-slate-300 transition";
+                    tr.innerHTML = `
+                        <td class="p-3">
+                            <div class="font-bold text-white text-xs">${log.tarikh || '-'}</div>
+                            <div class="mt-1">${displayPerjumpaan}</div>
+                        </td>
+                        <td class="p-3">
+                            <div class="font-semibold text-slate-200 text-xs">${log.pencatat || '-'}</div>
+                            <div class="text-xs text-slate-400 mt-0.5">${log.unit || '-'}</div>
+                        </td>
+                        <td class="p-3">
+                            <div class="text-xs text-slate-400 max-w-[280px] truncate" title="${log.laporan || log.lap || ''}">
+                                <strong class="text-slate-300">${log.aktiviti}:</strong> ${log.laporan || log.lap || '-'}
+                            </div>
+                        </td>
+                        <td class="p-3 text-center">
+                            <div class="font-bold text-white text-xs">${attendedCount}/${studs.length}</div>
+                            <div class="text-[10px] font-semibold text-emerald mt-0.5">${sessionPct}% hadir</div>
+                        </td>
+                        <td class="p-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick='editRecord("${log.id}")' class="p-1.5 rounded-lg bg-amberaccent/10 text-amberaccent hover:bg-amberaccent/20 transition" title="Sunting Pelaporan"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                                <button onclick='generateStandardPdfReport(${JSON.stringify(log)})' class="p-1.5 rounded-lg bg-royal/10 text-royal hover:bg-royal/20 transition" title="Cetak Semula PDF"><i data-lucide="printer" class="w-3.5 h-3.5"></i></button>
+                                <button onclick='deleteRecord("${log.id}")' class="p-1.5 rounded-lg bg-roseaccent/10 text-roseaccent hover:bg-roseaccent/20 transition" title="Padam Rekod"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                lucide.createIcons();
+            }
+
+            // Sync Graphical Analytics Framework
+            renderPieChartGraph(Object.values(activityDistribution));
+            
+            const lineData = ["Minggu 1", "Minggu 2", "Minggu 3", "Minggu 4", "Minggu 5"].map(w => {
+                return weeklyAttendanceSum[w].c > 0 ? Math.round(weeklyAttendanceSum[w].s / weeklyAttendanceSum[w].c) : 0;
+            });
+            renderLineChartGraph(lineData);
+
+            const barData = ["Tingkatan 1", "Tingkatan 2", "Tingkatan 3", "Tingkatan 4", "Tingkatan 5"].map(f => {
+                return formPerformanceMap[f].t > 0 ? Math.round((formPerformanceMap[f].h / formPerformanceMap[f].t) * 100) : 0;
+            });
+            renderBarChartGraph(barData);
+            renderKelasGranularAnalysis();
+        }
+
+        // CHARTS LOGICAL FACTORIES WRAPPERS
+        function renderPieChartGraph(dataArr) {
+            const ctx = document.getElementById('chart-pie-aktiviti').getContext('2d');
+            if(pieChartInstance) pieChartInstance.destroy();
+            pieChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ["Teori", "Amali", "Khidmat", "Pertandingan"],
+                    datasets: [{
+                        data: dataArr,
+                        backgroundColor: ["#2563eb", "#10b981", "#fbbf24", "#f43f5e"],
+                        borderWidth: 0
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } } }, responsive: true }
+            });
+        }
+
+        function renderLineChartGraph(dataArr) {
+            const ctx = document.getElementById('chart-line-kehadiran').getContext('2d');
+            if(lineChartInstance) lineChartInstance.destroy();
+            lineChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ["M1", "M2", "M3", "M4", "M5"],
+                    datasets: [{
+                        label: 'Kehadiran (%)',
+                        data: dataArr,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 100, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                        x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function renderBarChartGraph(dataArr) {
+            const ctx = document.getElementById('chart-bar-tingkatan').getContext('2d');
+            if(barChartInstance) barChartInstance.destroy();
+            barChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ["T1", "T2", "T3", "T4", "T5"],
+                    datasets: [{
+                        data: dataArr,
+                        backgroundColor: "#2563eb",
+                        borderRadius: 4,
+                        barThickness: 16
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 100, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                        x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // GRANULAR PROGRESSIVE BARS FOR CLASSES MAP RENDERER
+        function renderKelasGranularAnalysis() {
+            const targetTing = document.getElementById('analysis-tingkatan-select').value;
+            const container = document.getElementById('granular-kelas-container');
+            container.innerHTML = "";
+
+            // Gather structural unique classes names belonging to this selected rank from active students pool
+            const uniqueClasses = [...new Set(masterStudentDatabase.filter(m => m.tingkatan === targetTing).map(m => m.kelas))].filter(Boolean).sort();
+            
+            if(uniqueClasses.length === 0) {
+                container.innerHTML = `<div class="col-12 text-center p-4 text-slate-500 text-xs italic">Tiada data maklumat murid atau kelas dijumpai bagi tingkatan ini.</div>`;
+                return;
+            }
+
+            uniqueClasses.forEach(kelas => {
+                let totalSlots = 0;
+                let attendedSlots = 0;
+
+                databaseLaporan.forEach(log => {
+                    (log.kehadiran || []).forEach(s => {
+                        if(s.tingkatan === targetTing && s.kelas === kelas) {
+                            totalSlots++;
+                            if((s.status || "HADIR").toUpperCase() === "HADIR") attendedSlots++;
+                        }
+                    });
+                });
+
+                const pct = totalSlots > 0 ? Math.round((attendedSlots / totalSlots) * 100) : 0;
+                let colorClass = "bg-roseaccent";
+                if(pct >= 80) colorClass = "bg-emerald";
+                else if(pct >= 50) colorClass = "bg-amberaccent";
+
+                const col = document.createElement('div');
+                col.className = "col-6 col-md-3";
+                col.innerHTML = `
+                    <div class="p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-bold text-slate-200 truncate">${kelas}</span>
+                            <span class="font-extrabold text-white">${pct}%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-1.5 ${colorClass} rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="text-[10px] text-slate-500 text-right">${totalSlots} sampel data</div>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+        }
+
+        // PROFESSIONAL PDF OUTPUT GENERATION FACTORY
+        function generateStandardPdfReport(payload) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            // Set borders outer frames
+            doc.setDrawColor(37, 99, 235);
+            doc.setLineWidth(0.5);
+            doc.rect(5, 5, 200, 287);
+
+            // Print Letterhead logo image element
+            try {
+                doc.addImage("https://i.postimg.cc/9FLXr1cN/logo-semekgong.png", "PNG", 12, 10, 22, 22);
+            } catch(e) { console.error("Logo injection error:", e); }
+
+            // Write corporate address structures
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(14);
+            doc.setTextColor(15, 23, 42);
+            doc.text("SMK MATUNGGONG, KUDAT", 38, 15);
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(71, 85, 105);
+            doc.text("WDT No. 117, 89059 Kudat, Sabah, Malaysia.", 38, 20);
+            doc.text("E-mel: smkmatunggong@gmail.com | Talian Rasmi Sekolah: N/A", 38, 24);
+
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.5);
+            doc.line(10, 35, 200, 35);
+
+            // Document Header Context Title
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(11);
+            doc.setTextColor(37, 99, 235);
+            doc.text("LAPORAN RASMI PERJUMPAAN MINGGUAN KOKURIKULUM", 10, 43);
+
+            // Schedule Table 1: Metadata Fields Information matrix
+            const siriText = payload.perjumpaan ? `Siri Perjumpaan Ke-${payload.perjumpaan}` : "Tiada Siri (Rekod Lama)";
+            const metaRows = [
+                ["Unit Kokurikulum", payload.unit, "Tarikh Sesi", payload.tarikh],
+                ["Kategori Kluster", payload.kategori, "Siri Penjejakan", siriText],
+                ["Guru Pelapor", payload.pencatat, "Mod Aktiviti", payload.aktiviti]
+            ];
+
+            doc.autoTable({
+                startY: 47,
+                margin: { left: 10, right: 10 },
+                body: metaRows,
+                theme: 'plain',
+                styles: { fontSize: 9, cellPadding: 2.5, textColor: 51, font: "Helvetica" },
+                columnStyles: {
+                    0: { fontStyle: 'bold', width: 35, textColor: 100 },
+                    1: { width: 60 },
+                    2: { fontStyle: 'bold', width: 30, textColor: 100 },
+                    3: { width: 65 }
+                }
+            });
+
+            // Summary notes content block title text
+            let currentY = doc.lastAutoTable.finalY + 6;
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(15, 23, 42);
+            doc.text("Ringkasan Pengisian Aktiviti & Catatan Laporan:", 10, currentY);
+            
+            currentY += 4;
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(9.5);
+            doc.setTextColor(51);
+            const splitSummary = doc.splitTextToSize(payload.laporan, 185);
+            doc.text(splitSummary, 10, currentY);
+
+            // Schedule Table 2: Present active students data structure list
+            currentY += (splitSummary.length * 5) + 6;
+            const studentsList = payload.kehadiran || [];
+            const presentStudents = studentsList.filter(s => (s.status||'HADIR') === 'HADIR');
+            const absentStudents = studentsList.filter(s => (s.status||'HADIR') === 'PONTENG');
+
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(10);
+            doc.setTextColor(16, 185, 129);
+            doc.text(`Senarai Ahli Hadir (${presentStudents.length} / ${studentsList.length} Orang)`, 10, currentY);
+
+            const presentRows = presentStudents.map((s, i) => [i + 1, s.nama, s.tingkatan, s.kelas, "HADIR"]);
+            doc.autoTable({
+                startY: currentY + 3,
+                margin: { left: 10, right: 10 },
+                head: [["Bil", "Nama Penuh Pelajar", "Tingkatan", "Kelas", "Status Kehadiran"]],
+                body: presentRows.length > 0 ? presentRows : [["-", "Tiada data ahli hadir direkodkan.", "-", "-", "-"]],
+                theme: 'striped',
+                headStyles: { fillColor: [16, 185, 129], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                styles: { fontSize: 8.5, cellPadding: 2 }
+            });
+
+            // Schedule Table 3: Absent students matrix tracking sheet list
+            if(absentStudents.length > 0) {
+                currentY = doc.lastAutoTable.finalY + 6;
+                doc.setFont("Helvetica", "bold");
+                doc.setFontSize(10);
+                doc.setTextColor(244, 63, 94);
+                doc.text(`Senarai Ahli Tidak Hadir (${absentStudents.length} Orang)`, 10, currentY);
+
+                const absentRows = absentStudents.map((s, i) => [i + 1, s.nama, s.tingkatan, s.kelas, s.alasan || "Tanpa Sebab"]);
+                doc.autoTable({
+                    startY: currentY + 3,
+                    margin: { left: 10, right: 10 },
+                    head: [["Bil", "Nama Penuh Pelajar", "Tingkatan", "Kelas", "Sebab / Alasan Ketidakhadiran"]],
+                    body: absentRows,
+                    theme: 'striped',
+                    headStyles: { fillColor: [244, 63, 94], textColor: 255, fontSize: 9, fontStyle: 'bold' },
+                    styles: { fontSize: 8.5, cellPadding: 2 }
+                });
+            }
+
+            // Lampiran dokumentasi media gambaran grid blocks section
+            const mediaList = payload.media || [];
+            if(mediaList.length > 0) {
+                // Safely advance to next empty sheets to safeguard overlap layout breaks
+                doc.addPage();
+                // Redraw frames on sheet 2
+                doc.setDrawColor(37, 99, 235);
+                doc.rect(5, 5, 200, 287);
+
+                doc.setFont("Helvetica", "bold");
+                doc.setFontSize(11);
+                doc.setTextColor(15, 23, 42);
+                doc.text("LAMPIRAN DOKUMENTASI BERGAMBAR AKTIVITI", 10, 15);
+
+                let imgX = 12;
+                let imgY = 22;
+                mediaList.forEach((b64, idx) => {
+                    try {
+                        doc.addImage(b64, "JPEG", imgX, imgY, 88, 62);
+                        doc.setDrawColor(203, 213, 225);
+                        doc.rect(imgX, imgY, 88, 62);
+                    } catch(err) { console.error("Base64 embed error:", err); }
+
+                    if(idx === 0) { imgX = 108; }
+                    else if(idx === 1) { imgX = 12; imgY = 90; }
+                    else if(idx === 2) { imgX = 108; imgY = 90; }
+                });
+            }
+
+            // Signature legal authentication footer slots
+            currentY = doc.lastAutoTable.finalY ? Math.max(doc.lastAutoTable.finalY + 18, 240) : 240;
+            // Prevent trailing overflow pushes cutting signature boxes lines out of borders
+            if(currentY > 255) { doc.addPage(); doc.setDrawColor(37,99,235); doc.rect(5,5,200,287); currentY = 30; }
+
+            doc.setDrawColor(148, 163, 184);
+            doc.setLineWidth(0.3);
+            doc.line(12, currentY, 72, currentY);
+            doc.line(138, currentY, 198, currentY);
+
+            doc.setFont("Helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(51);
+            doc.text("Disediakan Oleh:", 12, currentY + 4);
+            doc.text("Disahkan & Disemak Oleh:", 138, currentY + 4);
+
+            doc.setFont("Helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.text("Guru Penasihat / Pelapor", 12, currentY + 8);
+            doc.text("Pengetua / PK Kokurikulum", 138, currentY + 8);
+
+            // INTERACTIVE MOBILE BLOB REDIRECT ROUTER DOWNLOAD COMPILER
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const filename = `Laporan_Koko_${payload.unit.replace(/\s+/g, '_')}_${payload.tarikh}.pdf`;
+
+            if (isMobile) {
+                const blob = doc.output('blob');
+                const blobURL = URL.createObjectURL(blob);
+                window.open(blobURL, '_blank');
+                showToast("Peranti mudah alih dikesan: PDF dibuka dalam tab baharu untuk perkongsian pantas.", "success");
+            } else {
+                doc.save(filename);
+                showToast("PDF dimuat turun terus ke komputer peranti anda.", "success");
+            }
+        }
+    </script>
+</body>
+</html>
