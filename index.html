@@ -302,9 +302,15 @@
                             <h3 class="text-base font-bold text-white">Modul Kemasukan Kehadiran Ahli</h3>
                             <p class="text-xs text-slate-400 mt-0.5">Semak, ubah maklumat inline, atau daftarkan nama murid cicir di bawah.</p>
                         </div>
-                        <button type="button" id="btn-ad-hoc" disabled onclick="openAdHocModal()" class="px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5 transition">
-                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Tambah Ahli Cicir (Ad-Hoc)
-                        </button>
+                        <div class="flex items-center gap-1.5">
+                            <!-- Butang Simpan Draf Manual -->
+                            <button type="button" onclick="saveDraftManually()" class="px-3 py-1.5 rounded-lg bg-emerald/10 hover:bg-emerald/20 text-emerald border border-emerald/30 font-semibold text-xs flex items-center gap-1.5 transition">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> Simpan Draf
+                            </button>
+                            <button type="button" id="btn-ad-hoc" disabled onclick="openAdHocModal()" class="px-3 py-1.5 rounded-lg bg-royal text-white font-semibold text-xs opacity-50 cursor-not-allowed flex items-center gap-1.5 transition">
+                                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Tambah Ahli (Ad-Hoc)
+                            </button>
+                        </div>
                     </div>
                     
                     <div id="attendance-list-wrapper" class="space-y-2 max-h-[680px] overflow-y-auto pr-1">
@@ -315,7 +321,7 @@
         </form>
     </main>
 
-    <!-- CUSTOM GENERIC DIALOG MODAL (Sifar Alert/Confirm) -->
+    <!-- CUSTOM GENERIC DIALOG MODAL -->
     <div id="custom-modal" class="fixed inset-0 bg-darkslate/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="glass-card max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div class="flex items-start gap-3">
@@ -385,8 +391,6 @@
         // Penjejak Status Sambungan Berperingkat (Mengelakkan Isu Flickering)
         let sheetsConnectionStatus = "connecting";    // "connecting" | "online" | "offline"
         let appsScriptConnectionStatus = "connecting"; // "connecting" | "online" | "offline"
-        let fetchCloudRetryCount = 0;
-        const MAX_RETRIES = 3;
 
         // INITIALIZATION
         window.addEventListener('DOMContentLoaded', () => {
@@ -482,7 +486,7 @@
                     console.error("CSV Ingestion Error:", err);
                     sheetsConnectionStatus = "offline";
                     updateCloudBadge();
-                    showToast("Sambungan Google Sheets data pelajar tersekat secara live.", "error");
+                    showToast("Sambungan Google Sheets data pelajar terputus.", "error");
                 });
         }
 
@@ -529,7 +533,7 @@
             });
         }
 
-        // DATA INGESTION ENGINE: FETCH REAL-TIME DATA CENTRAL WITH RETRIES
+        // DATA INGESTION ENGINE: FETCH REAL-TIME DATA CENTRAL
         function fetchCloudData() {
             appsScriptConnectionStatus = "connecting";
             updateCloudBadge();
@@ -566,7 +570,7 @@
             }
         }
 
-        // Penunjuk Pintar Sambungan Selamat Berbilang-Peringkat (DIBAIKI)
+        // Penunjuk Sambungan Pintar
         function updateCloudBadge(status = "") {
             const badge = document.getElementById('cloud-badge');
             if (!badge) return;
@@ -735,7 +739,6 @@
             saveDraftWithThrottle();
         }
 
-        // Kemaskini data pelajar secara langsung di paparan kad
         function updateInlineStudentMetadata(index, field, value) {
             activeFormStudents[index][field] = value;
             saveDraftWithThrottle();
@@ -780,6 +783,17 @@
                 media: selectedMedia
             };
             localStorage.setItem(draftKey, JSON.stringify(draftPayload));
+        }
+
+        // Fungsi Simpan Draf Secara Manual
+        function saveDraftManually() {
+            const unit = document.getElementById('inp-unit').value;
+            if(!unit) {
+                showToast("Sila pilih Unit Kokurikulum terlebih dahulu sebelum menyimpan draf.", "warning");
+                return;
+            }
+            saveDraftWithThrottle();
+            showToast("Draf perjumpaan unit berjaya disimpan secara manual!", "success");
         }
 
         function loadUnitDraft(key) {
@@ -1078,26 +1092,43 @@
                 tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Tiada suapan log sepadan ditemui dalam penapis semasa.</td></tr>`;
             } else {
                 tbody.innerHTML = "";
-                [...filteredLogs].reverse().forEach((log, localIdx) => {
+                [...filteredLogs].reverse().forEach((log) => {
                     const studs = log.kehadiran || [];
                     const attendedCount = studs.filter(s => (s.status||'HADIR') === 'HADIR').length;
-                    const pct = studs.length > 0 ? Math.round((attendedCount / studs.length) * 100) : 0;
+                    const sessionPct = studs.length > 0 ? Math.round((attendedCount / studs.length) * 100) : 0;
                     const displayPerjumpaan = log.perjumpaan ? `<span class="px-2 py-0.5 rounded bg-royal/20 text-royal font-bold text-[10px]">Siri ${log.perjumpaan}</span>` : `<span class="text-slate-500 text-[10px] italic">Laporan Lama</span>`;
 
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-white/[0.01] transition-all";
                     tr.innerHTML = `
-                        <td class="p-4 font-bold text-slate-300">${log.tarikh}</td>
-                        <td class="p-4 text-white font-extrabold">${log.unit}</td>
-                        <td class="p-4 text-slate-400">${log.pencatat}</td>
-                        <td class="p-4 text-center font-bold text-slate-300">${attendedCount}/${studs.length}</td>
-                        <td class="p-4 text-center">
-                            <span class="px-2 py-0.5 rounded-md font-bold text-[10px] ${pct >= 80 ? 'bg-emerald/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${pct}%</span>
+                        <td class="p-4 font-bold text-slate-300">
+                            <div class="text-white text-xs">${log.tarikh}</div>
+                            <div class="mt-1">${displayPerjumpaan}</div>
+                        </td>
+                        <td class="p-4 text-white font-extrabold">
+                            <div class="text-slate-100 text-xs">${log.unit}</div>
+                            <div class="text-slate-400 text-[11px] mt-0.5 font-normal">${log.pencatat}</div>
+                        </td>
+                        <td class="p-4 text-slate-400">
+                            <div class="text-xs truncate max-w-[200px]" title="${log.laporan || log.lap || ''}">
+                                <strong class="text-slate-300">${log.aktiviti}:</strong> ${log.laporan || log.lap || '-'}
+                            </div>
+                        </td>
+                        <td class="p-4 text-center font-bold text-slate-300">
+                            <div class="text-xs">${attendedCount}/${studs.length}</div>
+                            <div class="text-[10px] ${pct >= 80 ? 'text-emerald' : 'text-roseaccent'} mt-0.5">${pct}% hadir</div>
                         </td>
                         <td class="p-4 text-right">
-                            <div class="flex gap-1 justify-end">
-                                <button type="button" onclick='downloadPDFFromLog(${localIdx})' class="p-2 hover:bg-royal/20 text-royal-400 rounded-lg transition-all" title="Cetak Semula PDF"><i data-lucide="printer" class="w-4 h-4"></i></button>
-                                <button type="button" onclick='deleteRecord("${log.id}")' class="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg transition-all" title="Padam Rekod"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            <div class="flex gap-1.5 justify-end">
+                                <button type="button" onclick='editRecord("${log.id}")' class="p-2 hover:bg-amberaccent/20 text-amberaccent rounded-lg transition-all" title="Sunting Laporan">
+                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick='downloadPDFFromLog("${log.id}")' class="p-2 hover:bg-royal/20 text-royal-400 rounded-lg transition-all" title="Cetak Semula PDF">
+                                    <i data-lucide="printer" class="w-4 h-4"></i>
+                                </button>
+                                <button type="button" onclick='deleteRecord("${log.id}")' class="p-2 hover:bg-roseaccent/20 text-roseaccent rounded-lg transition-all" title="Padam Rekod">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
                             </div>
                         </td>
                     `;
@@ -1108,7 +1139,6 @@
 
             renderPieChartGraph(Object.values(activityDistribution));
             
-            // Susun semula data mengikut minggu
             const datasets = Object.keys(weeklyAttendanceSum).map(key => {
                 const val = weeklyAttendanceSum[key];
                 return val.c > 0 ? Math.round(val.s / val.c) : 0;
@@ -1255,7 +1285,7 @@
             });
         }
 
-        // PROFESSIONAL PDF OUTPUT GENERATION FACTORY
+        // PROFESSIONAL PDF OUTPUT GENERATION FACTORY (KEMASKINI EMEL & NO TEL)
         function generateStandardPdfReport(payload) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
@@ -1276,7 +1306,9 @@
             doc.setFontSize(8);
             doc.setTextColor(71, 85, 105);
             doc.text("WDT No. 117, 89059 Kudat, Sabah, Malaysia.", 38, 20);
-            doc.text("E-mel: smkmatunggong@gmail.com | Talian Rasmi Sekolah: N/A", 38, 24);
+            
+            // KEMASKINI: Menggunakan e-mel dan nombor telefon rasmi sekolah yang baharu
+            doc.text("E-mel: XEA5024@moe.edu.my | Tel: 088621681", 38, 24);
 
             doc.setDrawColor(203, 213, 225);
             doc.setLineWidth(0.5);
@@ -1329,7 +1361,7 @@
             doc.setFont("Helvetica", "bold");
             doc.setFontSize(10);
             doc.setTextColor(16, 185, 129);
-            doc.text(`Senarai Ahli Hadir (${presentStudents.length} / ${studentsList.length} Orang)`, 10, currentY);
+            doc.text(`SENARAI NAMA AHLI YANG HADIR (${presentStudents.length} / ${studentsList.length} Orang)`, 10, currentY);
 
             const presentRows = presentStudents.map((s, i) => [i + 1, s.nama, s.tingkatan, s.kelas, "HADIR"]);
             doc.autoTable({
@@ -1347,7 +1379,7 @@
                 doc.setFont("Helvetica", "bold");
                 doc.setFontSize(10);
                 doc.setTextColor(244, 63, 94);
-                doc.text(`Senarai Ahli Tidak Hadir (${absentStudents.length} Orang)`, 10, currentY);
+                doc.text(`SENARAI AHLI TIDAK HADIR (${absentStudents.length} Orang)`, 10, currentY);
 
                 const absentRows = absentStudents.map((s, i) => [i + 1, s.nama, s.tingkatan, s.kelas, s.alasan || "Tanpa Sebab"]);
                 doc.autoTable({
@@ -1420,9 +1452,13 @@
             }
         }
 
-        function downloadPDFFromLog(idx) {
-            const log = databaseLaporan[idx];
-            if(log) generateStandardPdfReport(log);
+        function downloadPDFFromLog(id) {
+            const log = databaseLaporan.find(item => item.id.toString() === id.toString());
+            if(log) {
+                generateStandardPdfReport(log);
+            } else {
+                showToast("Data pelaporan gagal diakses untuk cetakan PDF.", "error");
+            }
         }
     </script>
 </body>
