@@ -1041,8 +1041,7 @@
             const filterUnit = document.getElementById('filter-unit').value;
 
             const filteredLogs = databaseLaporan.filter(log => {
-                const tarikhBersih = formatKeWaktuLokal(log.tarikh);
-                if(filterBulan && (!tarikhBersih || tarikhBersih.split('-')[1] !== filterBulan)) return false;
+                if(filterBulan && (!log.tarikh || log.tarikh.split('-')[1] !== filterBulan)) return false;
                 
                 const actText = (log.laporan || log.lap || "").toLowerCase();
                 const matchedMinggu = filterMinggu ? (actText.includes(filterMinggu.toLowerCase())) : true;
@@ -1127,7 +1126,7 @@
                     tr.className = "hover:bg-white/[0.01] transition-all";
                     tr.innerHTML = `
                         <td class="p-4 font-bold text-slate-300">
-                            <div class="text-white text-xs">${formatKeWaktuLokal(log.tarikh)}</div>
+                            <div class="text-white text-xs">${log.tarikh}</div>
                             <div class="mt-1">${displayPerjumpaan}</div>
                         </td>
                         <td class="p-4 text-white font-extrabold">
