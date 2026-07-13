@@ -85,15 +85,6 @@
                         <option value="10">Oktober</option><option value="11">November</option><option value="12">Disember</option>
                     </select>
                 </div>
-                <div class="flex flex-col min-w-[110px]">
-                    <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Minggu</label>
-                    <select id="filter-minggu" onchange="applyDashboardFilters()" class="custom-input !py-1.5 text-sm">
-                        <option value="">Semua Minggu</option>
-                        <option value="Minggu 1">Minggu 1</option><option value="Minggu 2">Minggu 2</option>
-                        <option value="Minggu 3">Minggu 3</option><option value="Minggu 4">Minggu 4</option>
-                        <option value="Minggu 5">Minggu 5</option>
-                    </select>
-                </div>
                 <div class="flex flex-col min-w-[120px]">
                     <label class="text-[11px] uppercase tracking-wider text-slate-400 mb-1 font-semibold">Perjumpaan</label>
                     <select id="filter-perjumpaan" onchange="applyDashboardFilters()" class="custom-input !py-1.5 text-sm">
@@ -169,7 +160,7 @@
             </div>
             <div class="col-12 col-lg-4">
                 <div class="glass-card p-4 h-full flex flex-col justify-between">
-                    <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-emerald"></i>Larian Trend Kehadiran Mingguan</h4>
+                    <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-1.5"><i data-lucide="trending-up" class="w-4 h-4 text-emerald"></i>Trend Kehadiran Mengikut Siri Perjumpaan</h4>
                     <div class="w-full h-[220px]"><canvas id="chart-line-kehadiran"></canvas></div>
                 </div>
             </div>
@@ -388,7 +379,7 @@
         let lineChartInstance = null;
         let barChartInstance = null;
 
-        // Penjejak Status Sambungan Berperingkat (Mengelakkan Isu Flickering)
+        // Penjejak Status Sambungan Berperingkat
         let sheetsConnectionStatus = "connecting";    // "connecting" | "online" | "offline"
         let appsScriptConnectionStatus = "connecting"; // "connecting" | "online" | "offline"
 
@@ -546,7 +537,20 @@
                 .then(data => {
                     if(Array.isArray(data)) {
                         databaseLaporan = data;
-                        localStorage.setItem('smkm_logs', JSON.stringify(databaseLaporan));
+                        
+                        // PEMBETULAN PENYAKIT SENSOR: Lindungi storan localStorage daripada limpahan quota (Limit 5MB)
+                        try {
+                            // Cipta draf laporan ringan tanpa data media Base64 yang membebankan
+                            const lightweightLogs = data.map(item => {
+                                const copy = {...item};
+                                delete copy.media; // Padam data gambar berat untuk storan tempatan
+                                return copy;
+                            });
+                            localStorage.setItem('smkm_logs', JSON.stringify(lightweightLogs));
+                        } catch(storageError) {
+                            console.warn("Storage LocalStorage penuh, data di simpan dalam RAM peranti.", storageError);
+                        }
+                        
                         showToast(`Pangkalan data awan disinkronkan! Berjaya memuatkan ${data.length} laporan.`, "success");
                         appsScriptConnectionStatus = "online";
                     }
@@ -570,7 +574,7 @@
             }
         }
 
-        // Penunjuk Sambungan Pintar
+        // Penunjuk Sambungan Pintar (Fixed Connection Status System)
         function updateCloudBadge(status = "") {
             const badge = document.getElementById('cloud-badge');
             if (!badge) return;
@@ -600,7 +604,6 @@
             return [...new Set(masterStudentDatabase.filter(m => m.kategori === kategori).map(m => m.unit))].filter(Boolean);
         }
 
-        // Cascade filter di Dashboard
         function onDashboardKategoriChange() {
             const kat = document.getElementById('filter-kategori').value;
             const unitSelect = document.getElementById('filter-unit');
@@ -611,7 +614,6 @@
             applyDashboardFilters();
         }
 
-        // Cascade filter di Form Laporan
         function onFormKategoriChange() {
             const kat = document.getElementById('inp-kategori').value;
             const unitSelect = document.getElementById('inp-unit');
@@ -784,7 +786,12 @@
                 students: activeFormStudents,
                 media: selectedMedia
             };
-            localStorage.setItem(draftKey, JSON.stringify(draftPayload));
+            
+            try {
+                localStorage.setItem(draftKey, JSON.stringify(draftPayload));
+            } catch (e) {
+                console.warn("Gagal menyimpan draf unit sementara (Quota Exceeded)", e);
+            }
         }
 
         // Fungsi Simpan Draf Secara Manual
@@ -826,7 +833,7 @@
             showToast("Draf perjumpaan unit berjaya dipulihkan.", "success");
         }
 
-        // CORE RE-ENGINEERED SUBMISSION AND CLOUD WRITE-BACK (KALIS CORS)
+        // CORE RE-ENGINEERED SUBMISSION AND CLOUD WRITE-BACK (KALIS CORS & STABLE)
         function handleFormSubmission(e) {
             e.preventDefault();
 
@@ -1010,7 +1017,7 @@
             });
         }
 
-        // Render lampiran gambar di borang
+        // PENGURUSAN IMEJ PRATONTON
         function renderMediaPreview() {
             const container = document.getElementById('media-preview-container');
             if(!container) return;
@@ -1033,19 +1040,55 @@
         // RE-ENGINEERED DASHBOARD AND GRAPHICAL ANALYTICS ENGINE
         function applyDashboardFilters() { renderDashboard(); }
 
+        // FUNGSI PEMBANTU FORMAT TARIKH KEPADA WAKTU MALAYSIA (Kalis Ralat & Format Campuran)
+        function formatKeWaktuLokal(dateStr) {
+            if (!dateStr) return "-";
+            
+            // 1. Semak jika ia sudah berbentuk rentetan bersih YYYY-MM-DD
+            const cleanYmdMatch = dateStr.toString().match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (cleanYmdMatch && !dateStr.toString().includes('T') && !dateStr.toString().includes('Z')) {
+                return `${cleanYmdMatch[1]}-${cleanYmdMatch[2]}-${cleanYmdMatch[3]}`;
+            }
+            
+            // 2. Semak jika ia dalam format DD/MM/YYYY (Format Google Sheets lalai sesetengah sekolah)
+            const dmyMatch = dateStr.toString().match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+            if (dmyMatch) {
+                return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
+            }
+
+            // 3. Jika ia objek Date atau Rentetan ISO standard
+            const dateObj = new Date(dateStr);
+            if (isNaN(dateObj.getTime())) {
+                // Sebagai sandaran terakhir jika format aneh ditemui (Contoh: string panjang)
+                return dateStr.toString().substring(0, 10);
+            }
+
+            // 4. Jika dikesan mengandungi zon masa Zulu/ISO (T @ Z), selaraskan UTC+8 (Malaysia)
+            if (dateStr.toString().includes('T') || dateStr.toString().includes('Z')) {
+                const tzOffset = 8 * 60 * 60 * 1000; // 8 jam dalam milisaat
+                const localTime = new Date(dateObj.getTime() + tzOffset);
+                const y = localTime.getUTCFullYear();
+                const m = String(localTime.getUTCMonth() + 1).padStart(2, '0');
+                const d = String(localTime.getUTCDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            // 5. Rawatan lalai untuk objek tarikh normal
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         function renderDashboard() {
             const filterBulan = document.getElementById('filter-bulan').value;
-            const filterMinggu = document.getElementById('filter-minggu').value;
             const filterPerjumpaan = document.getElementById('filter-perjumpaan').value;
             const filterKat = document.getElementById('filter-kategori').value;
             const filterUnit = document.getElementById('filter-unit').value;
 
             const filteredLogs = databaseLaporan.filter(log => {
-                if(filterBulan && (!log.tarikh || log.tarikh.split('-')[1] !== filterBulan)) return false;
-                
-                const actText = (log.laporan || log.lap || "").toLowerCase();
-                const matchedMinggu = filterMinggu ? (actText.includes(filterMinggu.toLowerCase())) : true;
-                if(filterMinggu && !matchedMinggu) return false;
+                const tarikhBersih = formatKeWaktuLokal(log.tarikh);
+                if(filterBulan && (!tarikhBersih || tarikhBersih.split('-')[1] !== filterBulan)) return false;
 
                 const matchPerjumpaan = !filterPerjumpaan || (log.perjumpaan && log.perjumpaan.toString() === filterPerjumpaan.toString());
                 const matchKategori = !filterKat || log.kategori === filterKat;
@@ -1061,7 +1104,13 @@
             let unitCountsMap = {};
 
             let activityDistribution = { "Mesyuarat / Teori": 0, "Latihan / Amali": 0, "Projek / Khidmat Masyarakat": 0, "Pertandingan": 0 };
-            let weeklyAttendanceSum = { "Minggu 1": {s:0,c:0}, "Minggu 2": {s:0,c:0}, "Minggu 3": {s:0,c:0}, "Minggu 4": {s:0,c:0}, "Minggu 5": {s:0,c:0} };
+            
+            // Inisialisasi pengiraan siri perjumpaan (1-12) untuk menggantikan trend mingguan lama
+            let siriAttendanceSum = {};
+            for (let i = 1; i <= 12; i++) {
+                siriAttendanceSum[i] = { sum: 0, count: 0 };
+            }
+            
             let formPerformanceMap = { "Tingkatan 1": {hadir: 0, total: 0}, "Tingkatan 2": {hadir: 0, total: 0}, "Tingkatan 3": {hadir: 0, total: 0}, "Tingkatan 4": {hadir: 0, total: 0}, "Tingkatan 5": {hadir: 0, total: 0} };
 
             filteredLogs.forEach(log => {
@@ -1086,13 +1135,12 @@
 
                 const pctValue = studs.length > 0 ? (sessionAttended / studs.length) * 100 : 0;
                 
-                const textDump = (log.laporan || log.lap || "").toLowerCase();
-                ["Minggu 1", "Minggu 2", "Minggu 3", "Minggu 4", "Minggu 5"].forEach(wk => {
-                    if(textDump.includes(wk.toLowerCase())) {
-                        weeklyAttendanceSum[wk].s += pctValue;
-                        weeklyAttendanceSum[wk].c++;
-                    }
-                });
+                // Petakan purata kehadiran mengikut siri perjumpaan (1 - 12)
+                const siriNum = parseInt(log.perjumpaan, 10);
+                if (!isNaN(siriNum) && siriNum >= 1 && siriNum <= 12) {
+                    siriAttendanceSum[siriNum].sum += pctValue;
+                    siriAttendanceSum[siriNum].count++;
+                }
             });
 
             const globalPct = grandTotalStudents > 0 ? Math.round((grandTotalAttended / grandTotalStudents) * 100) : 0;
@@ -1118,7 +1166,7 @@
                     const studs = log.kehadiran || [];
                     const attendedCount = studs.filter(s => (s.status||'HADIR') === 'HADIR').length;
                     
-                    // PEMBETULAN PEBIJAT: Gunakan sessionPct tersendiri dan paparkan dengan tepat pada jadual
+                    // PEMBETULAN PERATUSAN JADUAL SECARA GRANULAR:
                     const sessionPct = studs.length > 0 ? Math.round((attendedCount / studs.length) * 100) : 0;
                     const displayPerjumpaan = log.perjumpaan ? `<span class="px-2 py-0.5 rounded bg-royal/20 text-royal font-bold text-[10px]">Siri ${log.perjumpaan}</span>` : `<span class="text-slate-500 text-[10px] italic">Laporan Lama</span>`;
 
@@ -1126,7 +1174,7 @@
                     tr.className = "hover:bg-white/[0.01] transition-all";
                     tr.innerHTML = `
                         <td class="p-4 font-bold text-slate-300">
-                            <div class="text-white text-xs">${log.tarikh}</div>
+                            <div class="text-white text-xs">${formatKeWaktuLokal(log.tarikh)}</div>
                             <div class="mt-1">${displayPerjumpaan}</div>
                         </td>
                         <td class="p-4 text-white font-extrabold">
@@ -1163,10 +1211,12 @@
 
             renderPieChartGraph(Object.values(activityDistribution));
             
-            const datasets = Object.keys(weeklyAttendanceSum).map(key => {
-                const val = weeklyAttendanceSum[key];
-                return val.c > 0 ? Math.round(val.s / val.c) : 0;
-            });
+            // Bina set data perjumpaan siri (1 hingga 12) untuk Line Chart
+            const datasets = [];
+            for (let i = 1; i <= 12; i++) {
+                const val = siriAttendanceSum[i];
+                datasets.push(val.count > 0 ? Math.round(val.sum / val.count) : 0);
+            }
             renderLineChartGraph(datasets);
 
             const barData = ["Tingkatan 1", "Tingkatan 2", "Tingkatan 3", "Tingkatan 4", "Tingkatan 5"].map(f => {
@@ -1205,7 +1255,7 @@
             lineChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: ["M1", "M2", "M3", "M4", "M5"],
+                    labels: ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12"],
                     datasets: [{
                         label: 'Kehadiran (%)',
                         data: dataArr,
@@ -1228,6 +1278,7 @@
             });
         }
 
+        // RENDER PRESTASI GRAF BAR TINGKATAN
         function renderBarChartGraph(dataArr) {
             const canvas = document.getElementById('chart-bar-tingkatan');
             if (!canvas) return;
@@ -1344,7 +1395,7 @@
 
             const siriText = payload.perjumpaan ? `Siri Perjumpaan Ke-${payload.perjumpaan}` : "Tiada Siri (Rekod Lama)";
             const metaRows = [
-                ["Unit Kokurikulum", payload.unit, "Tarikh Sesi", payload.tarikh],
+                ["Unit Kokurikulum", payload.unit, "Tarikh Sesi", formatKeWaktuLokal(payload.tarikh)],
                 ["Kategori Kluster", payload.kategori, "Siri Penjejakan", siriText],
                 ["Guru Pelapor", payload.pencatat, "Mod Aktiviti", payload.aktiviti]
             ];
@@ -1462,7 +1513,7 @@
             doc.text("Pengetua / PK Kokurikulum", 138, currentY + 8);
 
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const filename = `Laporan_Koko_${payload.unit.replace(/\s+/g, '_')}_${payload.tarikh}.pdf`;
+            const filename = `Laporan_Koko_${payload.unit.replace(/\s+/g, '_')}_${formatKeWaktuLokal(payload.tarikh)}.pdf`;
 
             if (isMobile) {
                 const blob = doc.output('blob');
